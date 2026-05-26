@@ -1,0 +1,332 @@
+---
+title: "Taller 15: Capítulo 20"
+subtitle: "Taller Arcgispro"
+author: "Kevin Reyes"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    theme: cosmo
+    code-fold: show
+    code-tools: true
+    code-copy: true
+    smooth-scroll: true
+    self-contained: true
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+execute:
+  echo: true
+  warning: false
+  message: false
+  eval: false
+lang: es
+---
+
+<style>
+/* Fondo general y tipografía */
+body {
+  text-align: justify;
+  line-height: 1.7;
+}
+
+/* Títulos */
+h1, h2, h3 {
+  font-weight: 700;
+}
+
+h1 {
+  border-bottom: 3px solid #2c7fb8;
+  padding-bottom: 0.3rem;
+  margin-top: 1.2rem;
+}
+
+h2 {
+  color: #1f5f8b;
+  margin-top: 1.5rem;
+}
+
+h3 {
+  color: #2c7a7b;
+}
+
+/* Cajas personalizadas */
+.caja-suave {
+  background: #f7fbff;
+  border-left: 6px solid #2c7fb8;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.caja-verde {
+  background: #f3fbf6;
+  border-left: 6px solid #2ca25f;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.caja-morada {
+  background: #faf7ff;
+  border-left: 6px solid #7a4ebf;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+/* Código */
+pre, code {
+  border-radius: 8px;
+}
+
+pre code {
+  font-size: 0.95rem;
+}
+
+/* Tablas */
+table {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+th {
+  background-color: #eaf4fb !important;
+}
+
+/* Bloques destacados */
+blockquote {
+  border-left: 5px solid #2c7fb8;
+  background: #f8fbfd;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+}
+</style>
+
+# Resumen sintáctico
+
+A continuación se muestra una guía organizada por pregunta, con el código de ArcPy para cada solución y una tabla final que resume las operaciones.
+
+## Pregunta 1: Listar Feature Classes de Punto y Línea
+Concepto: `arcpy.ListFeatureClasses()` permite obtener clases de entidad según el tipo de geometría.
+
+```python
+import arcpy
+
+puntos = arcpy.ListFeatureClasses(feature_type="Point")
+lineas = arcpy.ListFeatureClasses(feature_type="Line")
+
+print("Clases de entidad de puntos:", puntos)
+print("Clases de entidad de líneas:", lineas)
+```
+
+## Pregunta 2: Describir una capa y sus propiedades
+Concepto: `arcpy.Describe()` devuelve metadatos de la capa, incluido el sistema de referencia y el campo OID.
+
+```python
+import arcpy
+
+capa_puntos = "points_3857"
+desc = arcpy.Describe(capa_puntos)
+
+print(f"Nombre de la entidad: {desc.name}")
+print(f"Tipo de Geometría: {desc.shapeType}")
+print(f"Campo ID interno: {desc.OIDFieldName}")
+print(f"Sistema de Coordenadas: {desc.spatialReference.name}")
+print(f"Unidades lineales: {desc.spatialReference.linearUnitName}")
+```
+
+## Pregunta 3: Verificar y crear un Feature Dataset
+Concepto: Un Feature Dataset obliga a capas internas a compartir el mismo sistema de referencia espacial.
+
+```python
+import arcpy
+import os
+
+gdb_path = r"C:\PIG\Test.gdb"
+dataset_name = "autumn"
+referencia_capa = os.path.join(gdb_path, "points_3857")
+dataset_completo = os.path.join(gdb_path, dataset_name)
+
+if arcpy.Exists(dataset_completo):
+    print(f"El Feature Dataset '{dataset_name}' ya existe en la base de datos.")
+else:
+    spatial_ref = arcpy.Describe(referencia_capa).spatialReference
+    arcpy.management.CreateFeatureDataset(gdb_path, dataset_name, spatial_reference=spatial_ref)
+    print(f"Feature Dataset '{dataset_name}' creado exitosamente.")
+```
+
+## Pregunta 4: Listar campos de una tabla y sus tipos
+Concepto: `arcpy.ListFields()` permite validar tipos de datos antes de consultas SQL o cálculos.
+
+```python
+import arcpy
+
+campos = arcpy.ListFields("points_3857")
+
+print("Estructura de campos (Primeros 5):")
+for campo in campos[:5]:
+    print(f"Campo: {campo.name} | Tipo: {campo.type} | Longitud: {campo.length}")
+```
+
+## Pregunta 5: Contar registros de una capa sin cargar los datos
+Concepto: `arcpy.management.GetCount()` es rápido porque consulta directamente la tabla en la geodatabase.
+
+```python
+import arcpy
+
+resultado_conteo = arcpy.management.GetCount("points_3857")
+total_filas = int(resultado_conteo.getOutput(0))
+
+print(f"La capa 'points_3857' contiene un total de {total_filas} registros puntuales.")
+```
+
+## Pregunta 6: Crear una capa temporal en memoria
+Concepto: Las capas virtuales permiten aplicar filtros y selecciones sin modificar la clase de entidad física.
+
+```python
+import arcpy
+
+capa_entrada = "points_3857"
+capa_temporal = "lyr_puntos"
+
+if arcpy.Exists(capa_temporal):
+    arcpy.management.Delete(capa_temporal)
+
+arcpy.management.MakeFeatureLayer(capa_entrada, capa_temporal)
+print(f"Capa temporal '{capa_temporal}' creada en la memoria de la sesión.")
+```
+
+## Pregunta 7: Seleccionar registros por atributo en la capa temporal
+Concepto: `SelectLayerByAttribute` funciona sobre capas en memoria para aplicar filtros SQL.
+
+```python
+import arcpy
+
+clausula_sql = "bird_name = 'Folkert'"
+arcpy.management.SelectLayerByAttribute("lyr_puntos", "NEW_SELECTION", clausula_sql)
+conteo_filtrado = arcpy.management.GetCount("lyr_puntos")
+print(f"Registros encontrados para el ave Folkert: {int(conteo_filtrado.getOutput(0))}")
+```
+
+## Pregunta 8: Exportar los objetos seleccionados a un Feature Class físico
+Concepto: `CopyFeatures` guarda la selección actual como una nueva clase de entidad en la geodatabase.
+
+```python
+import arcpy
+import os
+
+gdb_path = r"C:\PIG\Test.gdb"
+salida_fisica = os.path.join(gdb_path, "points_folkert")
+arcpy.management.CopyFeatures("lyr_puntos", salida_fisica)
+print(f"Datos exportados físicamente a: {salida_fisica}")
+```
+
+## Pregunta 9: Filtrar con una consulta SQL compuesta
+Concepto: Los filtros SQL combinados permiten seleccionar registros que cumplen varias condiciones.
+
+```python
+import arcpy
+
+if arcpy.Exists("lyr_filtro_ambiental"):
+    arcpy.management.Delete("lyr_filtro_ambiental")
+arcpy.management.MakeFeatureLayer("points_3857", "lyr_filtro_ambiental")
+sql_compuesta = "vw_mtss IS NOT NULL AND vg_mtss_gcd > 4"
+
+try:
+    arcpy.management.SelectLayerByAttribute("lyr_filtro_ambiental", "NEW_SELECTION", sql_compuesta)
+    resultado_conteo = arcpy.management.GetCount("lyr_filtro_ambiental")
+    total_puntos = int(resultado_conteo.getOutput(0))
+    print("Éxito: Consulta SQL ejecutada correctamente.")
+    print(f"Puntos que cumplen con el criterio de vuelo activo con datos de viento: {total_puntos}")
+except arcpy.ExecuteError:
+    print("Error de geoprocesamiento de ArcGIS:")
+    print(arcpy.GetMessages(2))
+except Exception as e:
+    print(f"Error general del script: {str(e)}")
+```
+
+## Pregunta 10: Limpiar las capas temporales en memoria
+Concepto: Siempre es buena práctica eliminar capas temporales al finalizar el análisis.
+
+```python
+import arcpy
+
+capas_a_borrar = ["lyr_puntos", "lyr_filtro_ambiental"]
+for capa in capas_a_borrar:
+    if arcpy.Exists(capa):
+        arcpy.management.Delete(capa)
+        print(f"Capa '{capa}' removida con éxito.")
+```
+
+## Pregunta 11: Leer registros y controlar valores nulos con SearchCursor
+Concepto: `arcpy.da.SearchCursor` permite iterar filas de atributos y validar `None` para evitar errores al formatear valores numéricos.
+
+```python
+import arcpy
+
+# Asegurar que el entorno apunte a la base de datos del proyecto
+arcpy.env.workspace = r"C:\PIG\Test.gdb"
+
+capa = "points_3857"
+campos_analisis = ["bird_name", "vg_mtss_gcd"]
+
+print("Extrayendo registros mediante cursores indexados (con control de nulos):")
+
+# Abrir el cursor de lectura estructurada del módulo de acceso a datos (da)
+with arcpy.da.SearchCursor(capa, campos_analisis) as cursor:
+    contador = 0
+    for fila in cursor:
+        nombre_ave = fila[0]
+        velocidad = fila[1]
+        
+        # Validar si el registro de velocidad contiene un valor nulo (None)
+        if velocidad is not None:
+            print(f"Ave: {nombre_ave} | Velocidad de avance: {velocidad:.2f} m/s")
+        else:
+            print(f"Ave: {nombre_ave} | Velocidad de avance: [DATO NULO / SIN REGISTRO]")
+            
+        contador += 1
+        if contador == 10:
+            break
+```
+
+## Pregunta 12: Extraer valores únicos de una columna con cursor y `set`
+Concepto: El script necesita conocer qué aves existen en la base de datos para construir bucles de filtrado espacial. Combinar un `SearchCursor` con el tipo de datos nativo `set` de Python elimina automáticamente duplicados.
+
+```python
+import arcpy
+
+capa = "points_3857"
+campo_identificador = "bird_name"
+
+aves_unicas = set()
+
+with arcpy.da.SearchCursor(capa, [campo_identificador]) as cursor:
+    for fila in cursor:
+        # fila[0] contiene el valor de la columna 'bird_name'
+        if fila[0] is not None:
+            aves_unicas.add(fila[0])
+
+print("Lista consolidada de aves en el dataset:", list(aves_unicas))
+```
+
+## Tabla resumen de operaciones
+
+| Pregunta | Acción | Sintaxis ArcPy | Descripción breve |
+|---|---|---|---|
+| 1 | Listar Feature Classes de puntos y líneas | `arcpy.ListFeatureClasses(feature_type="Point")`, `arcpy.ListFeatureClasses(feature_type="Line")` | Identifica capas según tipo de geometría en la geodatabase. |
+| 2 | Describir una capa | `arcpy.Describe(capa_puntos)` | Extrae metadatos clave de la capa, como geometría y CRS. |
+| 3 | Crear Feature Dataset | `arcpy.management.CreateFeatureDataset(...)` | Organiza capas por escenario dentro de la geodatabase con el mismo CRS. |
+| 4 | Listar campos de la capa | `arcpy.ListFields("points_3857")` | Revisa nombres, tipos y longitudes de campos antes de análisis. |
+| 5 | Contar registros | `arcpy.management.GetCount("points_3857")` | Obtiene el número de filas sin cargar la tabla en memoria. |
+| 6 | Crear capa temporal en memoria | `arcpy.management.MakeFeatureLayer(...)` | Genera una vista en memoria para aplicar filtros y selecciones. |
+| 7 | Seleccionar por atributo | `arcpy.management.SelectLayerByAttribute(...)` | Aplica filtros SQL sobre la capa temporal. |
+| 8 | Exportar selección | `arcpy.management.CopyFeatures("lyr_puntos", salida_fisica)` | Guarda la selección en una nueva clase de entidad física. |
+| 9 | Filtrar con SQL compuesto | `arcpy.management.SelectLayerByAttribute(...)` | Combina condiciones para refinar la selección espacial. |
+| 10 | Limpiar capas temporales | `arcpy.management.Delete(capa)` | Elimina objetos temporales para liberar memoria y evitar conflictos. |
+| 11 | Leer registros con SearchCursor y manejar nulos | `arcpy.da.SearchCursor(capa, campos_analisis)` | Itera filas con validación de `None` para evitar errores al mostrar valores numéricos. |
+| 12 | Extraer valores únicos de un campo | `set()` con `arcpy.da.SearchCursor(capa, [campo_identificador])` | Genera lista de nombres de aves sin duplicados usando el tipo nativo `set`. |
